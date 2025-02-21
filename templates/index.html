@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Cost Calculator</title>
+    <link rel="stylesheet" href="static/styles.css">
+    <link rel="icon" href="static/favicon.ico" type="image/x-icon">
+    <!-- Include Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Loading Spinner Styles */
+        #loading-spinner {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            z-index: 1000;
+            display: none; /* Hidden by default */
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Chart Container Styles */
+        .chart-container {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header with Dashboard -->
+    <header>
+        <div class="header-content">
+            <button id="toggle-dashboard">&#9776;</button>
+        </div>
+        <div class="dashboard">
+            <div class="dashboard-content">
+                <button class="dashboard-button active" data-tab="compute">Compute</button>
+                <button class="dashboard-button" data-tab="storage">Storage</button>
+                <button class="dashboard-button" data-tab="network">Network</button>
+                <button class="dashboard-button" data-tab="database">Database</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <img src="static/tbi.png" style="height: 290px; width: 980px;" alt="Logo" class="cloud-logo">
+
+
+        <!-- Message Container -->
+        <div class="message-container">
+            <p>The final cost provided by this application is an estimate. Actual price may vary based on actual usage and other factors.</p>
+        </div>
+
+        <!-- Compute Tab Content -->
+        <div id="compute" class="tab-content active">
+            <!-- Existing Form and Output Containers -->
+            <div class="form-container">
+                <form method="POST" id="calculator-form">
+                    <!-- First Row: Region, OS, Type, Category -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="region">Region:</label>
+                            <select id="region" name="region" required>
+                                <option value="India">India</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="os">OS:</label>
+                            <select id="os" name="os" required>
+                                {% for option in os_options %}
+                                    <option value="{{ option }}">{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="type">Type:</label>
+                            <select id="type" name="type" required>
+                                {% for option in type_options %}
+                                    <option value="{{ option }}">{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="category">Category:</label>
+                            <select id="category" name="category" required>
+                                {% for option in category_options %}
+                                    <option value="{{ option }}" {% if option == "General Purpose" %}selected{% endif %}>
+                                        {{ option.title() }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Second Row: vCPU, RAM, SSD -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="vcpu">vCPU:</label>
+                            <select id="vcpu" name="vcpu" required>
+                                {% for option in vcpu_options %}
+                                    <option value="{{ option }}">{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="ram">RAM (GB):</label>
+                            <select id="ram" name="ram" required>
+                                {% for option in ram_options %}
+                                    <option value="{{ option }}">{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="ssd">SSD (GB):</label>
+                            <select id="ssd" name="ssd" required>
+                                {% for option in ssd_options %}
+                                    <option value="{{ option }}">{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Third Row: Quantity, Month, and Buttons -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="quantity">Quantity:</label>
+                            <input type="number" id="quantity" name="quantity" value="{{ quantity if quantity is not none else 1 }}" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="month">Month:</label>
+                            <input type="number" id="month" name="month" value="{{ month if month is not none else 1 }}" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <button type="submit">Calculate</button>
+                        </div>
+                        <div class="form-group">
+                            <button type="button" id="clear-button">Clear</button>
+                        </div>
+                    </div>
+                </form>
+
+                {% if error_message %}
+                    <p class="error-message">{{ error_message }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Selected Resources Box -->
+            <div class="selected-resources-box">
+                <div class="resource-item">
+                    <span class="resource-label">Region:</span>
+                    <span class="resource-value">{{ region }}</span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-label">OS:</span>
+                    <span class="resource-value">{{ os }}</span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-label">Type:</span>
+                    <span class="resource-value">{{ type }}</span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-label">Category:</span>
+                    <span class="resource-value">
+                        {% if category %}
+                            {{ category.title() }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-label">vCPU:</span>
+                    <span class="resource-value">{{ vcpu }}</span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-label">RAM (GB):</span>
+                    <span class="resource-value">{{ ram }}</span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-label">SSD (GB):</span>
+                    <span class="resource-value">{{ ssd }}</span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-label">Quantity:</span>
+                    <span class="resource-value">{{ quantity }}</span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-label">Month:</span>
+                    <span class="resource-value">{{ month }}</span>
+                </div>
+            </div>
+            <!-- Discount Radio Buttons -->
+            <div class="savings-plan-container">
+                <label class="savings-plan-option">
+                    <input type="radio" name="savings-plan" value="none" checked> None
+                </label>
+                <label class="savings-plan-option">
+                    <input type="radio" name="savings-plan" value="1-year"> 1-Year Savings Plan
+                </label>
+                <label class="savings-plan-option">
+                    <input type="radio" name="savings-plan" value="3-year"> 3-Year Savings Plan
+                </label>
+            </div>
+
+
+            <!-- Output Containers -->
+            <div class="output-container">
+                <div class="output-box">
+                    <img src="static/azure.png" alt="Azure Logo" class="cloud-logo">
+                    <p>{{ "Configuration not available" if azure_cost is none else "Final Cost: {:.2f}".format(azure_cost * quantity * month) }}</p>
+                    <p>{{ "Instance Type: " + azure_instance_type if azure_instance_type else "" }}</p>
+                </div>
+                <div class="output-box">
+                    <img src="static/aws.png" alt="AWS Logo" class="cloud-logo">
+                    <p>{{ "Configuration not available" if aws_cost is none else "Final Cost: {:.2f}".format(aws_cost * quantity * month) }}</p>
+                    <p>{{ "Instance Type: " + aws_instance_type if aws_instance_type else "" }}</p>
+                    <button id="know-more-configs" class="know-more-button">Know more Configs</button>
+                </div>
+                <div class="output-box">
+                    <img src="static/google2.png" alt="Google Cloud Logo" class="cloud-logo">
+                    <p>{{ "Configuration not available" if gcp_cost is none else "Final Cost: {:.2f}".format(gcp_cost * quantity * month) }}</p>
+                    <p>{{ "Instance Type: " + gcp_instance_type if gcp_instance_type else "" }}</p>
+                </div>
+            </div>
+
+            
+            <!-- Chart Container -->
+            <div class="chart-container">
+                <canvas id="costComparisonChart"></canvas>
+            </div>
+
+            <!-- AWS Config Container -->
+            <div id="aws-config-container" class="aws-config-container">
+                <div class="text-center">
+                     <img src="static/aws.png" alt="AWS Logo" class="cloud-logo">
+                </div>
+                <h3>Additional AWS Configurations</h3>
+                <form id="aws-config-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="aws-region">Region:</label>
+                            <select id="aws-region" name="aws-region" required>
+                                {% for region in aws_config_regions %}
+                                    <option value="{{ region }}">{{ region }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="aws-tenancy">Tenancy:</label>
+                            <select id="aws-tenancy" name="aws-tenancy" required>
+                                {% for tenancy in aws_config_tenancies %}
+                                    <option value="{{ tenancy }}">{{ tenancy }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="aws-os">OS:</label>
+                            <select id="aws-os" name="aws-os" required>
+                                {% for os in aws_config_os %}
+                                    <option value="{{ os }}">{{ os }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="aws-vcpu">vCPU:</label>
+                            <select id="aws-vcpu" name="aws-vcpu" required>
+                                {% for vcpu in aws_config_vcpus %}
+                                    <option value="{{ vcpu }}">{{ vcpu }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="aws-ram">RAM (GB):</label>
+                            <select id="aws-ram" name="aws-ram" required>
+                                {% for ram in aws_config_rams %}
+                                    <option value="{{ ram }}">{{ ram }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="aws-ssd">SSD (GB):</label>
+                            <select id="aws-ssd" name="aws-ssd" required>
+                                {% for ssd in aws_config_ssds %}
+                                    <option value="{{ ssd }}">{{ ssd }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <button type="submit" style="background-color: rgb(241, 191, 67); color: black;">Calculate AWS Cost</button>
+                        </div>
+                        <div class="form-group">
+                            <button type="button" style="background-color: black;" id="aws-clear-button" >Clear</button>
+                        </div>
+                    </div>
+                </form>
+
+                
+
+                <!-- AWS Selected Resources Container -->
+                <!-- AWS Selected Resources Box -->
+                <div id="aws-selected-resources-box">
+                    <div class="resource-item">
+                        <span class="resource-label">Region:</span>
+                        <span class="resource-value" id="aws-selected-region"></span>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-label">Tenancy:</span>
+                        <span class="resource-value" id="aws-selected-tenancy"></span>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-label">OS:</span>
+                        <span class="resource-value" id="aws-selected-os"></span>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-label">vCPU:</span>
+                        <span class="resource-value" id="aws-selected-vcpu"></span>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-label">RAM (GB):</span>
+                        <span class="resource-value" id="aws-selected-ram"></span>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-label">SSD (GB):</span>
+                        <span class="resource-value" id="aws-selected-ssd"></span>
+                    </div>
+                </div>
+
+
+                <!-- AWS Savings Plan Radio Buttons -->
+                <div class="aws-savings-plan-container">
+                    <label class="aws-savings-plan-option">
+                        <input type="radio" name="aws-savings-plan" value="none" checked> None
+                    </label>
+                    <label class="aws-savings-plan-option">
+                        <input type="radio" name="aws-savings-plan" value="1-year"> 1-Year Savings Plan
+                    </label>
+                    <label class="aws-savings-plan-option">
+                        <input type="radio" name="aws-savings-plan" value="3-year"> 3-Year Savings Plan
+                    </label>
+                </div>
+
+                <!-- AWS Config Output -->
+                <div id="aws-config-output" class="output-box">
+                    <p>Final Cost: <span id="aws-config-cost">0.00</span></p>
+                    <p id="aws-config-message"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Other Tabs -->
+        <div id="storage" class="tab-content">
+            <p>Storage content will be added here.</p>
+        </div>
+        <div id="network" class="tab-content">
+            <p>Network content will be added here.</p>
+        </div>
+        <div id="database" class="tab-content">
+            <p>Database content will be added here.</p>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner">
+        <div class="spinner"></div>
+        <p>Calculating...</p>
+    </div>
+
+
+     <!-- Back to Top Button -->
+     <button id="back-to-top">Back to Top</button>
+
+    <!-- Footer -->
+    <footer>
+        <!-- Footer Content -->
+    </footer>
+
+    <script>
+        // Initialize Chart
+        let costComparisonChart;
+    
+        // Function to render the chart
+        function renderChart(azureCost, awsCost, gcpCost) {
+            const ctx = document.getElementById('costComparisonChart').getContext('2d');
+    
+            // Destroy existing chart instance if it exists
+            if (costComparisonChart) {
+                costComparisonChart.destroy();
+            }
+    
+            // Create new chart
+            costComparisonChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Azure', 'AWS', 'GCP'],
+                    datasets: [{
+                        label: 'Cost Comparison',
+                        data: [azureCost, awsCost, gcpCost],
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.2)', // Azure
+                            'rgba(255, 206, 86, 0.2)',  // AWS
+                            'rgba(75, 192, 192, 0.2)'   // GCP
+                        ],
+                        borderColor: [
+                            'rgba(54, 162, 235, 1)', // Azure
+                            'rgba(255, 206, 86, 1)',  // AWS
+                            'rgba(75, 192, 192, 1)'   // GCP
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Cost (USD)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Cloud Cost Comparison'
+                        }
+                    }
+                }
+            });
+        }
+
+
+
+        
+    
+        // Clear Main Form
+        document.getElementById('clear-button').addEventListener('click', function() {
+            // Reset all form fields
+            document.getElementById('region').value = 'India';
+            document.getElementById('os').selectedIndex = 0;
+            document.getElementById('type').selectedIndex = 0;
+            document.getElementById('category').selectedIndex = 0;
+            document.getElementById('vcpu').selectedIndex = 0;
+            document.getElementById('ram').selectedIndex = 0;
+            document.getElementById('ssd').selectedIndex = 0;
+            document.getElementById('quantity').value = 1;
+            document.getElementById('month').value = 1;
+    
+            // Reset the output containers
+            document.querySelector('.output-box:nth-child(1) p').textContent = "Configuration not available";
+            document.querySelector('.output-box:nth-child(2) p').textContent = "Configuration not available";
+            document.querySelector('.output-box:nth-child(3) p').textContent = "Configuration not available";
+    
+            // Reset the selected resources box
+            const selectedResourcesBox = document.querySelector('.selected-resources-box');
+            if (selectedResourcesBox) {
+                selectedResourcesBox.style.display = 'none';
+            }
+    
+            // Reset the discount radio buttons
+            document.querySelector('input[name="savings-plan"][value="none"]').checked = true;
+    
+            // Clear the chart
+            if (costComparisonChart) {
+                costComparisonChart.destroy();
+            }
+        });
+    
+        // Clear AWS Config Form
+        document.getElementById('aws-clear-button').addEventListener('click', function() {
+            // Reset all AWS config form fields
+            document.getElementById('aws-region').selectedIndex = 0;
+            document.getElementById('aws-tenancy').selectedIndex = 0;
+            document.getElementById('aws-os').selectedIndex = 0;
+            document.getElementById('aws-vcpu').selectedIndex = 0;
+            document.getElementById('aws-ram').selectedIndex = 0;
+            document.getElementById('aws-ssd').selectedIndex = 0;
+    
+            // Reset the AWS config output
+            document.getElementById('aws-config-cost').textContent = '0.00';
+            document.getElementById('aws-config-message').textContent = '';
+    
+            // Reset the AWS selected resources box
+            const awsSelectedResourcesBox = document.getElementById('aws-selected-resources-box');
+            if (awsSelectedResourcesBox) {
+                awsSelectedResourcesBox.style.display = 'none';
+            }
+    
+            // Reset the AWS discount radio buttons
+            document.querySelector('input[name="aws-savings-plan"][value="none"]').checked = true;
+        });
+    
+        // Toggle AWS Config Container and Scroll to It
+        document.getElementById('know-more-configs').addEventListener('click', function() {
+            const awsConfigContainer = document.getElementById('aws-config-container');
+            
+            // Toggle the visibility of the AWS Config Container
+            awsConfigContainer.style.display = awsConfigContainer.style.display === 'none' ? 'block' : 'none';
+    
+            // Scroll to the AWS Config Container smoothly
+            if (awsConfigContainer.style.display === 'block') {
+                awsConfigContainer.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    
+        // Handle AWS Config Form Submission
+        document.getElementById('aws-config-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+    
+            // Get the selected discount option for AWS Config
+            const awsDiscountOption = document.querySelector('input[name="aws-savings-plan"]:checked').value;
+    
+            fetch('/calculate-aws-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            })
+            .then(response => response.json())
+            .then(result => {
+                // Store the original cost in a data attribute
+                const awsConfigCostElement = document.getElementById('aws-config-cost');
+                awsConfigCostElement.dataset.originalCost = result.cost;
+    
+                // Apply discount based on the selected option
+                let awsFinalCost = result.cost;
+                if (awsDiscountOption === '1-year') {
+                    awsFinalCost *= 0.7; // 30% discount
+                } else if (awsDiscountOption === '3-year') {
+                    awsFinalCost *= 0.5; // 50% discount
+                }
+    
+                // Display the cost and message
+                awsConfigCostElement.textContent = awsFinalCost.toFixed(2);
+                document.getElementById('aws-config-message').textContent = result.message;
+    
+                // Display the AWS Selected Resources Container
+                const awsSelectedResourcesBox = document.getElementById('aws-selected-resources-box');
+                awsSelectedResourcesBox.style.display = 'block';
+    
+                // Populate the AWS Selected Resources Container
+                document.getElementById('aws-selected-region').textContent = result.aws_region;
+                document.getElementById('aws-selected-tenancy').textContent = result.aws_tenancy;
+                document.getElementById('aws-selected-os').textContent = result.aws_os;
+                document.getElementById('aws-selected-vcpu').textContent = result.aws_vcpu;
+                document.getElementById('aws-selected-ram').textContent = result.aws_ram;
+                document.getElementById('aws-selected-ssd').textContent = result.aws_ssd;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    
+        // Discount Radio Button Functionality for AWS Config
+        const awsSavingsPlanRadios = document.querySelectorAll('input[name="aws-savings-plan"]');
+        const awsConfigCostElement = document.getElementById('aws-config-cost');
+    
+        awsSavingsPlanRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                // Get the original cost from the data attribute
+                const originalCost = parseFloat(awsConfigCostElement.dataset.originalCost);
+    
+                if (!isNaN(originalCost)) {
+                    let discount = 0;
+                    if (radio.value === "1-year") {
+                        discount = 0.3; // 30% discount
+                    } else if (radio.value === "3-year") {
+                        discount = 0.5; // 50% discount
+                    }
+    
+                    // Apply discount to the original cost
+                    const discountedCost = originalCost * (1 - discount);
+                    awsConfigCostElement.textContent = discountedCost.toFixed(2);
+                }
+            });
+        });
+    
+        // Discount Radio Button Functionality for Main Container
+        const savingsPlanRadios = document.querySelectorAll('input[name="savings-plan"]');
+        const azureCostElement = document.querySelector('.output-box:nth-child(1) p');
+        const awsCostElement = document.querySelector('.output-box:nth-child(2) p');
+        const gcpCostElement = document.querySelector('.output-box:nth-child(3) p');
+    
+        savingsPlanRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                const azureCost = parseFloat("{{ azure_cost * quantity * month if azure_cost is not none else 0 }}");
+                const awsCost = parseFloat("{{ aws_cost * quantity * month if aws_cost is not none else 0 }}");
+                const gcpCost = parseFloat("{{ gcp_cost * quantity * month if gcp_cost is not none else 0 }}");
+    
+                let discount = 0;
+                if (radio.value === "1-year") {
+                    discount = 0.3; // 30% discount
+                } else if (radio.value === "3-year") {
+                    discount = 0.5; // 50% discount
+                }
+    
+                azureCostElement.textContent = azureCost ? `Final Cost: ${(azureCost * (1 - discount)).toFixed(2)}` : "Configuration not available";
+                awsCostElement.textContent = awsCost ? `Final Cost: ${(awsCost * (1 - discount)).toFixed(2)}` : "Configuration not available";
+                gcpCostElement.textContent = gcpCost ? `Final Cost: ${(gcpCost * (1 - discount)).toFixed(2)}` : "Configuration not available";
+    
+                // Render the chart with updated costs
+                renderChart(
+                    azureCost ? azureCost * (1 - discount) : 0,
+                    awsCost ? awsCost * (1 - discount) : 0,
+                    gcpCost ? gcpCost * (1 - discount) : 0
+                );
+            });
+        });
+    </script>
+</body>
+</html>

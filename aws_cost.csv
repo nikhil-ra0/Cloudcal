@@ -1,0 +1,30 @@
+Region,Category,OS,Type,vCPU ,RAM,SSD ,Cost ,Instance Type
+India,General Purpose ,Windows,OS only,2,4,375,155.85,Shared Instance
+India,General Purpose ,Windows,OS only,4,16,375,328.56,Shared Instance
+India,General Purpose ,Windows,OS only,8,16,375,701.96,Shared Instance
+India,General Purpose ,Windows,OS only,8,32,375,764.74,Shared Instance
+India,General Purpose ,Windows,OS only,2,4,750,254.1,Shared Instance
+India,General Purpose ,Windows,OS only,4,16,750,426.81,Shared Instance
+India,General Purpose ,Windows,OS only,8,16,750,800.21,Shared Instance
+India,General Purpose ,Windows,OS only,8,32,750,862.99,Shared Instance
+India,Storage Optimized,Windows,OS only,16,64,750,426.78,Dedicated 
+India,Memory Optimized,Windows,OS only,32,64,750,654.68,Dedicated 
+India,Storage Optimized,Windows,SQL Server,16,64,750,426.78,Dedicated 
+India,Memory Optimized,Windows,OS only,32,64,750,654.68,Dedicated 
+India,Storage Optimized ,Windows,OS only,8,64,375,817.16,Dedicated 
+India,Storage Optimized ,Windows,OS only,16,128,375,"1,602.64",Dedicated 
+India,Storage Optimized ,Windows,OS only,32,256,375,"3,141.92",Dedicated 
+India,Storage Optimized ,Windows,OS only,48,384,375,"4,744.56",Dedicated 
+India,Storage Optimized ,Windows,OS only,64,512,375,"6,283.84",Dedicated 
+India,Storage Optimized ,Windows,OS only,80,640,375,"7,886.48",Dedicated 
+India,Memory Optimized ,Windows,OS only,1,14,375,237.54,Dedicated 
+India,Memory Optimized ,Windows,OS only,1,28,375,442.67,Dedicated 
+India,Memory Optimized ,Windows,OS only,2,28,750,474.35,Dedicated 
+India,Memory Optimized ,Windows,OS only,4,56,375,853.66,Dedicated 
+India,Memory Optimized ,Windows,OS only,4,112,375,"1,643.96",Dedicated 
+India,Memory Optimized ,Windows,OS only,8,112,375,"1,675.64",Dedicated 
+India,Memory Optimized ,Windows,OS only,4,64,375,542.68,Dedicated 
+India,Memory Optimized ,Windows,OS only,4,128,375,"1,053.68",Dedicated 
+India,Memory Optimized ,Windows,OS only,8,128,375,"1,053.68",Dedicated 
+India,Memory Optimized ,Windows,OS only,8,256,375,"2,076.41",Dedicated 
+India,Memory Optimized ,Windows,OS only,16,256,375,"2,076.41",Dedicated 
